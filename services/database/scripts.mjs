@@ -457,15 +457,15 @@ const processContract = async (
           throw new Error("Cannot infer match type");
       }
     }
-    const request = await fetch(url, {
+    const response = await fetch(url, {
       method: "POST",
       body: JSON.stringify(body),
       headers,
     });
 
-    if (request.status === 200) {
-      const response = await request.json();
-      if (response.result[0].status !== null) {
+    if (response.status === 200) {
+      const jsonRes = await response.json();
+      if (jsonRes.result[0].status !== null) {
         await executeQueryWithRetry(
           databasePool,
           `
@@ -486,7 +486,7 @@ const processContract = async (
             contract.chain_id,
             contract.address,
             contract.match_type,
-          ]} with error: ${response.result[0].message}`,
+          ]} with error: ${jsonRes.result[0].message}`,
         ]);
       }
       return [true, [contract.chain_id, contract.address, contract.match_type]];
@@ -496,7 +496,7 @@ const processContract = async (
           contract.chain_id,
           contract.address,
           contract.match_type,
-        ]} with error: ${await request.text()}`,
+        ]} with error: ${await JSON.stringify(jsonRes)}`,
       );
     }
   } catch (e) {
