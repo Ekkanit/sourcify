@@ -468,10 +468,14 @@ const processContract = async (
       const jsonRes = await response.json();
       if (jsonRes.result[0].status !== null) {
         if (contract.match_type === "full_match") {
-          assert(jsonRes.status === "perfect");
+          assert(
+            jsonRes.status === "perfect",
+            `Expected perfect, got ${jsonRes.status}`,
+          );
         }
         if (contract.match_type === "partial_match") {
-          assert(jsonRes.status === "partial");
+          assert(jsonRes.status === "partial"),
+            `Expected partial, got ${jsonRes.status}`;
         }
 
         markContractSynced(databasePool, contract);
@@ -492,7 +496,10 @@ const processContract = async (
       const jsonRes = await response.json();
       // Mark already partially verified contracts as synced. Sometimes the server response does not reach the script and such contracts never get marked as synced.
       if (jsonRes.error.includes("is already partially verified")) {
-        assert(contract.match_type === "partial_match");
+        assert(
+          contract.match_type === "partial_match",
+          `Expected partial, got ${contract.match_type}`,
+        );
         markContractSynced(databasePool, contract);
         // return
         return [
