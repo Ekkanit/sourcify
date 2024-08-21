@@ -469,13 +469,13 @@ const processContract = async (
       if (jsonRes.result[0].status !== null) {
         if (contract.match_type === "full_match") {
           assert(
-            jsonRes.status === "perfect",
-            `Expected perfect, got ${jsonRes.status}`,
+            jsonRes.result[0].status === "perfect",
+            `Expected perfect, got ${jsonRes.result[0].status}`,
           );
         }
         if (contract.match_type === "partial_match") {
-          assert(jsonRes.status === "partial"),
-            `Expected partial, got ${jsonRes.status}`;
+          assert(jsonRes.result[0].status === "partial"),
+            `Expected partial, got ${jsonRes.result[0].status}`;
         }
 
         markContractSynced(databasePool, contract);
