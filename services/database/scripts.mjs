@@ -6,6 +6,7 @@ import path from "path";
 import fs from "fs";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
+import assert from "assert";
 
 // Convert the URL to a file path and get the directory name. Workaround for .mjs scripts
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -466,19 +467,14 @@ const processContract = async (
     if (response.status === 200) {
       const jsonRes = await response.json();
       if (jsonRes.result[0].status !== null) {
-        await executeQueryWithRetry(
-          databasePool,
-          `
-          UPDATE sourcify_sync
-          SET 
-            synced = true
-          WHERE 1=1
-            AND chain_id = $1
-            AND address = $2
-            AND match_type = $3   
-          `,
-          [contract.chain_id, contract.address, contract.match_type],
-        );
+        if (contract.match_type === "full_match") {
+          assert(jsonRes.status === "perfect");
+        }
+        if (contract.match_type === "partial_match") {
+          assert(jsonRes.status === "partial");
+        }
+
+        markContractSynced(databasePool, contract);
       } else {
         throw new Error([
           false,
@@ -489,8 +485,21 @@ const processContract = async (
           ]} with error: ${jsonRes.result[0].message}`,
         ]);
       }
+
+      // return
       return [true, [contract.chain_id, contract.address, contract.match_type]];
     } else {
+      const jsonRes = await response.json();
+      // Mark already partially verified contracts as synced. Sometimes the server response does not reach the script and such contracts never get marked as synced.
+      if (jsonRes.error.includes("is already partially verified")) {
+        assert(contract.match_type === "partial_match");
+        markContractSynced(databasePool, contract);
+        // return
+        return [
+          true,
+          [contract.chain_id, contract.address, contract.match_type],
+        ];
+      }
       throw new Error(
         `Failed to sync: ${[
           contract.chain_id,
@@ -596,6 +605,21 @@ const insertContractsBatch = async (contractsChunk, pool) => {
 function isNumber(value) {
   return !isNaN(parseFloat(value)) && isFinite(value);
 }
+
+const markContractSynced = async (databasePool, contract) => {
+  const query = `
+    UPDATE sourcify_sync
+    SET synced = true
+    WHERE chain_id = $1
+      AND address = $2
+      AND match_type = $3
+  `;
+  await executeQueryWithRetry(databasePool, query, [
+    contract.chain_id,
+    contract.address,
+    contract.match_type,
+  ]);
+};
 
 const executeQueryWithRetry = async (
   databasePool,
